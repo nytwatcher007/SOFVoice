@@ -128,11 +128,30 @@ too. This is deliberate — do not "fix" it by embedding Polysans.
 **Slice 1:** schema + RLS + anonymity gate + design shell.
 **Slice 2:** closed-circuit access gate.
 **Slice 3:** anonymous complaint form.
+**Slice 4:** suggestion form with the reveal toggle.
 
-`/suggestion` and `/track` are still placeholders.
+`/track` is still a placeholder.
 
-**Next:** suggestion form → track by reference → admin auth + dashboard →
-term-end purge.
+**Next:** track by reference → admin auth + dashboard → public suggestion board
+→ term-end purge.
+
+### The public suggestion board is deferred, on purpose
+
+Migration `0002` adds `published` and `upvotes`, but there is no board UI yet
+and **no votes table**. Two reasons:
+
+1. **Upvote dedupe cannot use accounts, because there are none.** A
+   `votes(submission_id, voter_id)` table is precisely the identity anchor
+   invariant 1 forbids, and a voter id that also appeared on a submission would
+   become a correlation handle. Dedupe will be client-side only, so counts are
+   *interest*, not an exact tally, and the UI must say so.
+2. **Publishing needs moderation**, and moderation lives in the dashboard.
+   Publishing anonymous content to a small cohort unreviewed means an
+   identifying or abusive post is live before anyone has read it.
+
+A `check (not published or kind = 'suggestion')` constraint means a complaint
+can never reach the board, enforced by the database rather than by remembering
+to filter.
 
 ### Why complaints are anonymous three times over
 

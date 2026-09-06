@@ -176,6 +176,125 @@ try {
       `${d1.referenceCode} vs ${d2.referenceCode}`
     )
   }
+  // ---------------------------------------------------------------------------
+  // Suggestions (slice 4). The reveal toggle is the ONLY route by which identity
+  // is permitted to reach storage, so each branch of it is tested.
+  // ---------------------------------------------------------------------------
+  const postSuggestion = (payload: unknown, cookieValue?: string) =>
+    fetch(`${BASE}/api/suggestion`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(cookieValue ? { cookie: cookieValue } : {}),
+      },
+      body: JSON.stringify(payload),
+    })
+
+  // 7. Reveal OFF but name/contact supplied anyway -> both discarded.
+  {
+    const subject = 'PROBE suggestion reveal off'
+    createdSubjects.push(subject)
+    const res = await postSuggestion(
+      {
+        category: 'Other',
+        subject,
+        body: 'x'.repeat(30),
+        revealName: false,
+        name: 'Should Be Discarded',
+        contact: 'discard@example.com',
+      },
+      cookie
+    )
+    const row = await rowBySubject(subject)
+    check(
+      7,
+      'reveal off discards a supplied name and contact',
+      res.ok && !!row && row.name === null && row.contact === null,
+      `status=${res.status} name=${JSON.stringify(row?.name)}`
+    )
+  }
+
+  // 8. Reveal ON with a name -> stored. This is the one permitted case.
+  {
+    const subject = 'PROBE suggestion reveal on'
+    createdSubjects.push(subject)
+    const res = await postSuggestion(
+      {
+        category: 'Other',
+        subject,
+        body: 'x'.repeat(30),
+        revealName: true,
+        name: 'Named Submitter',
+        contact: 'named@example.com',
+      },
+      cookie
+    )
+    const row = await rowBySubject(subject)
+    check(
+      8,
+      'reveal on stores the name the user chose to give',
+      res.ok && row?.name === 'Named Submitter' && row?.contact === 'named@example.com',
+      `status=${res.status} name=${JSON.stringify(row?.name)}`
+    )
+  }
+
+  // 9. Reveal ON with a blank name -> rejected, not silently anonymous.
+  {
+    const subject = 'PROBE suggestion reveal blank'
+    const res = await postSuggestion(
+      { category: 'Other', subject, body: 'x'.repeat(30), revealName: true, name: '   ' },
+      cookie
+    )
+    const row = await rowBySubject(subject)
+    check(
+      9,
+      'reveal on with a blank name is rejected rather than stored anonymously',
+      res.status === 400 && !row,
+      `status=${res.status} rowWritten=${!!row}`
+    )
+  }
+
+  // 10. revealName absent entirely -> defaults to anonymous.
+  {
+    const subject = 'PROBE suggestion default'
+    createdSubjects.push(subject)
+    const res = await postSuggestion(
+      { category: 'Other', subject, body: 'x'.repeat(30), name: 'Sneaky' },
+      cookie
+    )
+    const row = await rowBySubject(subject)
+    check(
+      10,
+      'omitting revealName defaults to anonymous',
+      res.ok && !!row && row.name === null,
+      `status=${res.status} name=${JSON.stringify(row?.name)}`
+    )
+  }
+
+  // 11. A complaint can never be published to the public board.
+  {
+    const subject = 'PROBE publish complaint'
+    createdSubjects.push(subject)
+    await post({ category: 'Other', subject, body: 'x'.repeat(30) }, cookie)
+    let rejected = false
+    let detail = 'UPDATE unexpectedly succeeded'
+    try {
+      await client.query(
+        'update public.submissions set published = true where subject = $1',
+        [subject]
+      )
+    } catch (e) {
+      // 23514 = check_violation
+      rejected = (e as { code?: string }).code === '23514'
+      detail = `code=${(e as { code?: string }).code}`
+    }
+    check(
+      11,
+      'the database refuses to publish a complaint to the board',
+      rejected,
+      detail
+    )
+  }
 } finally {
   if (createdSubjects.length) {
     await client.query(
