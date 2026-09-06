@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# `vercel link` appends its own `.vercel` and `.env*` rules here. Both are
+# already declared above, and a trailing `.env*` would land AFTER the
+# `!.env.local.example` negation and silently re-ignore the committed template.
+# If they reappear after a future `vercel link`, delete them again.
