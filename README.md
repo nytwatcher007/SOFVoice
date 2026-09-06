@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SoF Voice
 
-## Getting Started
+Anonymous accountability & suggestions portal for The School of Future, Kochi.
+Run by the SoF Kochi student council.
 
-First, run the development server:
+Read [`CLAUDE.md`](./CLAUDE.md) before changing anything. It defines invariants
+that are build failures, not review comments.
+
+## Launch blockers
+
+These must be cleared before the portal accepts a real submission.
+
+- [ ] **Rotate the database password.** Supabase → Settings → Database → Reset
+      database password. The current one was pasted into a chat transcript on
+      2026-09-06.
+- [ ] **Rotate the service-role key.** Same reason. Supabase → Settings → API.
+- [ ] **Set the escalation contact.** `src/lib/escalation.ts` currently holds
+      `ESCALATION_CONTACT_UNSET`, which renders a visible LAUNCH BLOCKER banner
+      on every form. It must name a real person **outside the student council**
+      who can act on a disclosure of harm — a programme director, faculty lead,
+      or the institution's grievance officer. See `CLAUDE.md` lines 125-138.
+- [ ] **Set real access codes.** `MEMBER_ACCESS_CODE` / `ADMIN_ACCESS_CODE` in
+      `.env.local`. Do **not** reuse `SOF-VOICE-2026` / `CHAIR-2026` — those
+      appeared in a PDF that has been shared around.
+
+## Setup
 
 ```bash
+npm install
+cp .env.local.example .env.local   # then fill in the values
+npm run db:migrate
+npm run test:anonymity
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Connecting to the database
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Use the Supabase **session pooler** connection string (IPv4, port 5432, user
+`postgres.<project-ref>`). The direct host `db.<ref>.supabase.co` is **IPv6-only**
+and is unreachable from many networks including this one — if `DATABASE_URL`
+suddenly stops working, check that it hasn't been swapped back to the direct host.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server on :3000 |
+| `npm run build` | Production build + typecheck |
+| `npm run lint` | ESLint |
+| `npm run db:check` | Prints connection identity and public tables |
+| `npm run db:migrate` | Applies `supabase/migrations/*.sql`, tracked in `_migrations` |
+| `npm run test:anonymity` | **The gate.** Must pass before any commit. |
 
-To learn more about Next.js, take a look at the following resources:
+## The anonymity gate
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`npm run test:anonymity` asserts, against a real database row:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. A complaint with `name`/`contact` deliberately injected persists both as `NULL`.
+2. No IP, user-agent, session, or identity column exists on `submissions`.
+3. The `anon` role gets SQLSTATE `42501` on `SELECT * FROM submissions`.
+4. Only the SHA-256 of the reference code is stored; the plaintext is absent.
+5. Every `/api/admin/*` route rejects a member-level session.
 
-## Deploy on Vercel
+Assertion 5 currently passes **vacuously** — no admin routes exist yet. It
+enumerates the route tree at runtime, so it gains real coverage automatically
+when the admin slice lands, without the suite being edited.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+If a change makes this suite fail, the change is wrong. Do not edit the suite to
+make it pass.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Design
+
+Brand tokens verified 2026-09-06 against the live Webflow stylesheet
+`sofuture.webflow.shared.56e41c6ef.min.css`:
+`#ff600b` orange, `#180b05` espresso, `#f9f4eb` cream, `#ffb917` amber.
+
+Logos in `public/` are the **official** SVGs downloaded from the live site
+(`sof-logo-nav.svg` was `69382e2f65d6d211d3281743_SOF - White Navbar logo.svg`;
+`sof-logo-footer.svg` was `68f7abdf63e174cce3c549b2_footer-brand-logo.svg`).
+Renamed for URL sanity, otherwise untouched. Never substitute a generated logo.
+
+The live site uses **Polysans** for display type. It is a commercial Wildtype
+licence and is not redistributable, so Plus Jakarta Sans carries headings here
+too. This is deliberate — do not "fix" it by embedding Polysans.
+
+## Build status
+
+**Slice 1 (done):** schema + RLS + anonymity gate + design shell.
+Routes `/complaint`, `/suggestion`, `/track` are placeholders.
+
+**Next:** access-code gate → complaint form → suggestion form → track by
+reference → admin auth + dashboard → term-end purge.
