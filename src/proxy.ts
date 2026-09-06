@@ -33,5 +33,20 @@ export const config = {
   // shared member code — the two identities are deliberately asymmetric
   // (CLAUDE.md lines 78-88). Without this exclusion a chairperson would be
   // bounced to the member gate before ever reaching their own sign-in.
-  matcher: ['/((?!enter|admin|api/|_next/static|_next/image|favicon.ico|sof-logo-).*)'],
+  //
+  // The icon and Open Graph routes must be excluded too. Without this the proxy
+  // redirects them to /enter and a link preview fetches HTML where it expects a
+  // PNG — so sharing the portal in a WhatsApp group shows no image at all.
+  // These expose nothing: the OG image is generated, static, and says only what
+  // the manifesto already says in public.
+  // Dots are NOT backslash-escaped here. Next's matcher parser rejects `\\.`
+  // and silently disables the proxy entirely when it does — which looks exactly
+  // like the gate being switched off. An unescaped `.` matches any character,
+  // which is harmless for these prefixes.
+  //
+  // Icon patterns are extension-agnostic because Next serves apple-icon as .png
+  // (SVG is unsupported there), and pinning the extension broke this once.
+  matcher: [
+    '/((?!enter|admin|api/|_next/static|_next/image|favicon.|icon.|apple-icon.|opengraph-image|manifest.|sof-logo-).*)',
+  ],
 }
