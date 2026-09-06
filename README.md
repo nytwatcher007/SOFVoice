@@ -68,6 +68,7 @@ suddenly stops working, check that it hasn't been swapped back to the direct hos
 | `npm run db:migrate` | Applies `supabase/migrations/*.sql`, tracked in `_migrations` |
 | `npm run test:anonymity` | **The gate.** Must pass before any commit. |
 | `npm run test:gate` | Access-gate suite. Needs `npm run dev` running. |
+| `npm run test:submission` | Complaint HTTP path. Needs `npm run dev` running. |
 | `npm run gen:code` | Prints a fresh access code + session secret |
 
 ## The access gate
@@ -124,8 +125,25 @@ too. This is deliberate — do not "fix" it by embedding Polysans.
 
 ## Build status
 
-**Slice 1 (done):** schema + RLS + anonymity gate + design shell.
-Routes `/complaint`, `/suggestion`, `/track` are placeholders.
+**Slice 1:** schema + RLS + anonymity gate + design shell.
+**Slice 2:** closed-circuit access gate.
+**Slice 3:** anonymous complaint form.
 
-**Next:** access-code gate → complaint form → suggestion form → track by
-reference → admin auth + dashboard → term-end purge.
+`/suggestion` and `/track` are still placeholders.
+
+**Next:** suggestion form → track by reference → admin auth + dashboard →
+term-end purge.
+
+### Why complaints are anonymous three times over
+
+Belt, braces, and a third belt — because this is the one promise that cannot
+break:
+
+1. `src/app/api/complaint/route.ts` never reads `name`/`contact` off the request.
+2. `sanitizeIdentity()` in `src/lib/submissions.ts` nulls them regardless.
+3. The `submissions_complaints_are_anonymous` CHECK constraint refuses the row
+   outright if the first two ever fail.
+
+`npm run test:submission` proves it end-to-end: it POSTs a complaint with a name
+and contact deliberately injected, then reads the raw row back out of Postgres
+and asserts both are `NULL`.

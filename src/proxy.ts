@@ -21,7 +21,12 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except the gate itself, its API, Next internals, and the logo
-  // files — otherwise the gate screen cannot load its own assets.
-  matcher: ['/((?!enter|api/gate|_next/static|_next/image|favicon.ico|sof-logo-).*)'],
+  // Excludes the gate screen, Next internals, and the logo files — otherwise
+  // the gate cannot load its own assets.
+  //
+  // ALL of /api is excluded too. Redirecting an API request to an HTML page is
+  // the wrong answer: a caller gets a 200 full of markup instead of a 401, and
+  // fetch() follows the redirect silently. Route handlers check the session
+  // themselves and return a real status code.
+  matcher: ['/((?!enter|api/|_next/static|_next/image|favicon.ico|sof-logo-).*)'],
 }
