@@ -10,23 +10,29 @@ that are build failures, not review comments.
 
 These must be cleared before the portal accepts a real submission.
 
+### Deferred by the chairperson — still outstanding, not resolved
+
+Moved out of the blocking list at the chairperson's request. Recorded here
+rather than deleted, because a security item that is removed from the checklist
+is a security item that gets forgotten.
+
 - [ ] **Rotate the database password.** Supabase → Settings → Database → Reset
       database password. The current one was pasted into a chat transcript on
-      2026-09-06.
+      2026-09-06 and should be treated as public.
 - [ ] **Rotate the service-role key.** Same reason. Supabase → Settings → API.
-- [ ] **Verify the escalation contact's email address.** `src/lib/escalation.ts`
-      names **Akshay Muralidharan** (faculty/administration, outside the student
-      council) as the intended contact, but `contact` is still
-      `ESCALATION_EMAIL_UNSET` and a LAUNCH BLOCKER banner renders on every form.
-      Two things are outstanding:
-      **(a)** the address supplied was `akshay@sof.com`, which is **not** SoF's
-      domain — SoF publishes `info@theschooloffuture.com`, and `sof.com` belongs
-      to an unrelated party. Publishing it would route safeguarding disclosures
-      to a stranger and would fail *silently*. Send a test email to the real
-      address before wiring it in.
-      **(b)** he is expecting the role but has not formally confirmed it. A named
-      contact who doesn't respond is worse than none, because someone relied on
-      it.
+      This key bypasses all row-level security.
+
+### Blocking
+- [ ] **Verify the escalation address is deliverable.** Akshay Muralidharan has
+      **confirmed the role** — that part is done. The address currently in
+      `src/lib/escalation.ts` is `akshay@sof.com`, a **demo value**: `sof.com` is
+      not SoF's domain (SoF publishes `info@theschooloffuture.com`) and belongs
+      to an unrelated party.
+      Mail sent there reaches a stranger or nobody, and does so **silently** —
+      no bounce tells a student their disclosure went nowhere.
+      Fix: get his real address, **send a test email and confirm it arrives**,
+      then set `verified: true`. The LAUNCH BLOCKER banner renders on every form
+      until you do.
 - [ ] **Set a fresh access code and session secret.** `npm run gen:code`, then
       paste both into `.env.local` and into the Vercel project's environment
       variables. Do **not** reuse `SOF-VOICE-2026` — it appeared in a PDF that
@@ -79,6 +85,8 @@ suddenly stops working, check that it hasn't been swapped back to the direct hos
 | `npm run test:submission` | Submission HTTP path. Needs `npm run dev` running. |
 | `npm run test:admin` | Admin authorisation. Needs `npm run dev` running. |
 | `npm run test:board` | Suggestion board. Needs `npm run dev` running. |
+| `npm run test:purge` | Term-end purge rules |
+| `npm run purge` | Dry run of the purge; `-- --confirm` to delete |
 | `npm run test:privileges` | Proves the app's DB role is actually narrow |
 | `npm run test:all` | Every suite, in order |
 | `npm run admin:add` | Create + authorise a council account |
@@ -178,7 +186,41 @@ in → reviews → replies.
 **Slice 7:** least-privilege database role (`sof_app`).
 **Slice 8:** public suggestion board with moderation.
 
-**Next:** term-end purge, then deploy.
+**Slice 9:** term-end purge.
+
+**Next:** deploy.
+
+### The term-end purge
+
+Resolved and dismissed entries are deleted 180 days after they were **closed**
+(not after they were submitted — otherwise something submitted 200 days ago and
+resolved yesterday would vanish immediately, taking a reply the submitter may
+never have read). A `resolved_on` date is stamped by trigger on close and
+cleared on reopen.
+
+**Escalated entries are never purged**, however old. Those concern harm to a
+person and may be needed if something is investigated later.
+`new` and `reviewing` are untouched too — silently deleting a complaint nobody
+got round to is the opposite of accountability.
+
+It runs **inside the database** via `pg_cron`, monthly. That is the only way to
+be genuinely automatic here: `sof_app` deliberately has no `DELETE`, and
+`DATABASE_ADMIN_URL` must never exist in production. **`sof_app` cannot execute
+the purge function either** — a deleting function callable by the app role would
+hand back exactly the capability slice 7 removed, so `EXECUTE` is revoked from
+it (functions are `PUBLIC`-executable by default, so that revoke is doing real
+work).
+
+To see what the scheduled job is about to remove:
+
+```bash
+npm run purge                 # dry run — shows what would go, deletes nothing
+npm run purge -- --confirm    # actually deletes
+npm run purge -- --days 90    # different retention window
+```
+
+Dry run is the default deliberately. There is no undo, and no backup of this
+data outside Supabase's own.
 
 ### Admin accounts
 

@@ -1,4 +1,8 @@
-import { ESCALATION_CONTACT, isEscalationContactConfigured } from '@/lib/escalation'
+import {
+  ESCALATION_CONTACT,
+  hasEscalationContact,
+  isEscalationContactConfigured,
+} from '@/lib/escalation'
 
 /**
  * Persistent on every form. Not decoration, not dismissible — CLAUDE.md line 138.
@@ -32,6 +36,13 @@ export function EscalationNotice() {
             {ESCALATION_CONTACT.contact}
           </a>
           . You can also submit here, and the council can escalate it onward.
+        </p>
+      ) : hasEscalationContact() ? (
+        <p className="mt-3 rounded border border-orange bg-orange/15 p-3 font-mono text-xs text-cream">
+          LAUNCH BLOCKER — the escalation address ({ESCALATION_CONTACT.contact})
+          is a DEMO value and has not been verified as deliverable. Send a test
+          email, then set verified: true in src/lib/escalation.ts. Until then a
+          disclosure sent there may reach nobody, with no bounce to say so.
         </p>
       ) : (
         <p className="mt-3 rounded border border-orange bg-orange/15 p-3 font-mono text-xs text-cream">
