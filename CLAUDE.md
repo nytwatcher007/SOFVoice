@@ -136,44 +136,65 @@ and left `xmin` completely untouched, and rows inserted after it appended in
 order again immediately (`(0,4)`, `(0,5)`). There is no schema-level fix. Do not
 re-propose one.
 
-**Therefore this is a threat-model decision, not a coding task**, and it must be
-settled before slice 6:
+**This was a threat-model decision, not a coding task.**
 
 > Who can run raw SQL against production?
 
-- If the answer is **only the application** — `ctid` and `xmin` are irrelevant.
-  The app sorts by `created_on, ref_hash` and never selects either. The promise
-  holds.
-- If the answer **includes the chairperson via the Supabase dashboard** — no fix
-  exists, and the anonymity promise is weaker than what the cohort is being told.
+**DECIDED 2026-09-06: only the application.** The chairperson gives up the
+Supabase SQL editor and table editor for this project and reads submissions
+*only* through the admin dashboard. `ctid` and `xmin` therefore become
+irrelevant — the app sorts by `created_on, ref_hash` and never selects either —
+and the strong anonymity promise holds honestly.
 
-Consequence if we want the strong promise: the chairperson dashboard must be the
-*only* route by which any council member ever sees a submission, and the
-chairperson must give up direct SQL access to a table in a project they own.
+This binds the design from slice 6 onwards:
+
+- The admin dashboard is the **only** route by which any council member sees a
+  submission. If something is not visible there, the answer is to add it to the
+  dashboard, not to open a SQL console.
+- Anything needed for debugging goes through a migration or a script in
+  `scripts/`, reviewed like any other code — never an ad-hoc query against
+  production.
+- The `sof_app` role below is what makes this enforceable rather than a promise
+  someone keeps by remembering to.
+
 Invariant 4 still earns its place — it stops order leaking through the
-*application* — but it was never sufficient on its own.
+*application* — but it was never sufficient on its own, and it is the discipline
+above that closes the gap.
 
-### 2. Connection identity: do not "fix" this by switching to the service-role key
+### 2. Connection identity — CLOSED in slice 7
 
-Invariants 5 and 6 describe access via the **service-role key**. The code instead
-connects as `postgres` over `DATABASE_URL`. Measured: `rolsuper=false`,
-`rolbypassrls=true`, `rolcreaterole=true`.
+Invariants 5 and 6 described access via the service-role key. Switching to it
+would have been pointless: `postgres` and `service_role` both set `BYPASSRLS`,
+so that swaps one over-privileged identity for another.
 
-Both `postgres` and `service_role` set `BYPASSRLS`, so swapping one for the other
-just exchanges one over-privileged identity for another and changes nothing that
-matters.
+**Resolved** by a dedicated least-privilege role, `sof_app`, verified by
+`npm run test:privileges`:
 
-The right fix is a dedicated least-privilege role:
+| | `postgres` (before) | `sof_app` (now) |
+|---|---|---|
+| `rolbypassrls` | true | **false** |
+| `rolcreaterole` | true | **false** |
+| `DELETE` / `TRUNCATE` | granted | **refused (42501)** |
+| DDL | yes | **refused** |
+| `SET ROLE postgres` | n/a | **refused** |
 
-- `sof_app` — `INSERT`, `SELECT`, `UPDATE` on `submissions`. **No `BYPASSRLS`,
-  no `CREATEROLE`, no DDL.** RLS policies then actually constrain the running
-  application instead of being bypassed.
-- A separate migration role holds DDL.
+Two connection strings now exist and must stay separate:
 
-This is the same instinct as the `CHECK` constraint on complaint anonymity —
-belt and braces at the database level — applied to connection identity. The
-version that matters: a leaked application credential must not hand over the
-whole project.
+- `DATABASE_URL` → `sof_app`. The only one the deployed app ever sees.
+- `DATABASE_ADMIN_URL` → `postgres`. Migrations, tests, admin scripts.
+  **Must not be set in the production environment.**
+
+Read invariants 5 and 6 as naming `sof_app`, not the service-role key.
+
+Two things to know before changing this:
+
+- Supabase's `supautils` extension blocks `alter role … nosuperuser`, so these
+  attributes can only be set at `CREATE` time. `scripts/setup-app-role.mjs`
+  therefore *verifies* them and refuses to continue if they are wrong, rather
+  than trying to re-assert them.
+- The term-end purge will need its own privileged script, precisely because
+  `sof_app` cannot delete. That is intended, not an obstacle to route around —
+  do not grant `DELETE` to `sof_app` to make a purge easier.
 
 ### 3. Say what we can actually guarantee, on the portal itself
 

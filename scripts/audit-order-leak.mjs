@@ -1,10 +1,10 @@
-// Does removing created_at actually hide submission order?
+﻿// Does removing created_at actually hide submission order?
 // Tests ctid, xmin, and whether CLUSTER is a durable fix.
 // Run: node --env-file=.env.local scripts/audit-order-leak.mjs
 import pg from 'pg'
 
 const c = new pg.Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_ADMIN_URL,
   ssl: { rejectUnauthorized: false },
 })
 await c.connect()
@@ -28,7 +28,7 @@ const show = async (title) => {
         order by xmin::text::bigint`
     )
   ).rows
-  console.log(`\n${title}  — ORDER BY xmin:`)
+  console.log(`\n${title}  â€” ORDER BY xmin:`)
   for (const r of byXmin) console.log(`   xmin=${r.xmin} ctid=${r.ctid}  ${r.subject}`)
 }
 
