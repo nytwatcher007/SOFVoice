@@ -14,11 +14,19 @@ These must be cleared before the portal accepts a real submission.
       database password. The current one was pasted into a chat transcript on
       2026-09-06.
 - [ ] **Rotate the service-role key.** Same reason. Supabase → Settings → API.
-- [ ] **Set the escalation contact.** `src/lib/escalation.ts` currently holds
-      `ESCALATION_CONTACT_UNSET`, which renders a visible LAUNCH BLOCKER banner
-      on every form. It must name a real person **outside the student council**
-      who can act on a disclosure of harm — a programme director, faculty lead,
-      or the institution's grievance officer. See `CLAUDE.md` lines 125-138.
+- [ ] **Verify the escalation contact's email address.** `src/lib/escalation.ts`
+      names **Akshay Muralidharan** (faculty/administration, outside the student
+      council) as the intended contact, but `contact` is still
+      `ESCALATION_EMAIL_UNSET` and a LAUNCH BLOCKER banner renders on every form.
+      Two things are outstanding:
+      **(a)** the address supplied was `akshay@sof.com`, which is **not** SoF's
+      domain — SoF publishes `info@theschooloffuture.com`, and `sof.com` belongs
+      to an unrelated party. Publishing it would route safeguarding disclosures
+      to a stranger and would fail *silently*. Send a test email to the real
+      address before wiring it in.
+      **(b)** he is expecting the role but has not formally confirmed it. A named
+      contact who doesn't respond is worse than none, because someone relied on
+      it.
 - [ ] **Set a fresh access code and session secret.** `npm run gen:code`, then
       paste both into `.env.local` and into the Vercel project's environment
       variables. Do **not** reuse `SOF-VOICE-2026` — it appeared in a PDF that
@@ -68,7 +76,9 @@ suddenly stops working, check that it hasn't been swapped back to the direct hos
 | `npm run db:migrate` | Applies `supabase/migrations/*.sql`, tracked in `_migrations` |
 | `npm run test:anonymity` | **The gate.** Must pass before any commit. |
 | `npm run test:gate` | Access-gate suite. Needs `npm run dev` running. |
-| `npm run test:submission` | Complaint HTTP path. Needs `npm run dev` running. |
+| `npm run test:submission` | Submission HTTP path. Needs `npm run dev` running. |
+| `npm run test:admin` | Admin authorisation. Needs `npm run dev` running. |
+| `npm run admin:add` | Create + authorise a council account |
 | `npm run gen:code` | Prints a fresh access code + session secret |
 
 ## The access gate
@@ -101,9 +111,10 @@ identity anchor invariant 1 forbids.
 4. Only the SHA-256 of the reference code is stored; the plaintext is absent.
 5. Every `/api/admin/*` route rejects a member-level session.
 
-Assertion 5 currently passes **vacuously** — no admin routes exist yet. It
-enumerates the route tree at runtime, so it gains real coverage automatically
-when the admin slice lands, without the suite being edited.
+**As of slice 6 all five assertions genuinely pass.** Assertion 5 was vacuous
+until admin routes existed; it now checks four of them. It gained that coverage
+automatically, without the suite being edited — and it failed on first run,
+catching two routes that answered `405` instead of `401`.
 
 If a change makes this suite fail, the change is wrong. Do not edit the suite to
 make it pass.
@@ -130,11 +141,41 @@ too. This is deliberate — do not "fix" it by embedding Polysans.
 **Slice 3:** anonymous complaint form.
 **Slice 4:** suggestion form with the reveal toggle.
 **Slice 5:** track by reference.
+**Slice 6:** admin auth (Supabase Auth + mandatory MFA) and the queue dashboard.
 
-The whole submitter journey now works end to end: enter → submit → get a code →
-check status and read replies.
+Both sides now work: submitters enter → submit → track, and the council signs
+in → reviews → replies.
 
-**Next:** admin auth + dashboard → public suggestion board → term-end purge.
+**Next:** public suggestion board → term-end purge.
+
+### Admin accounts
+
+```bash
+npm run admin:add -- you@theschooloffuture.com "Chairperson"
+```
+
+Creates the Supabase Auth user and the `admin_users` row. **Three gates must all
+pass** to reach the dashboard:
+
+1. a valid Supabase Auth session
+2. a row in `admin_users` — being authenticated is not being an admin, which is
+   what makes revocation a single `DELETE` rather than a redeploy
+3. assurance level `aal2` — MFA actually satisfied, not merely enrolled
+
+Gate 3 matters more than it looks: Supabase reports `aal1` for a password-only
+session even when TOTP is enrolled, so checking "does this user have MFA?" would
+wave an unverified session straight through.
+
+### The dashboard shows no counts, deliberately
+
+`CLAUDE.md` lines 120–121. No category tallies, no volume over time, no totals.
+"Three complaints under Community & conduct this week" plus knowing who was in
+the room is often enough to identify someone in a cohort this size. If a task
+asks for a stats panel, the task is wrong — see the note in
+`src/lib/admin-data.ts`.
+
+This is a deliberate divergence from the original PDF, which described a
+dashboard with "live stats".
 
 ### Why `/api/track` is POST and not GET
 

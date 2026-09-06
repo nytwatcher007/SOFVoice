@@ -28,5 +28,10 @@ export const config = {
   // the wrong answer: a caller gets a 200 full of markup instead of a 401, and
   // fetch() follows the redirect silently. Route handlers check the session
   // themselves and return a real status code.
-  matcher: ['/((?!enter|api/|_next/static|_next/image|favicon.ico|sof-logo-).*)'],
+  //
+  // /admin is excluded too. Admins authenticate with Supabase Auth, not the
+  // shared member code — the two identities are deliberately asymmetric
+  // (CLAUDE.md lines 78-88). Without this exclusion a chairperson would be
+  // bounced to the member gate before ever reaching their own sign-in.
+  matcher: ['/((?!enter|admin|api/|_next/static|_next/image|favicon.ico|sof-logo-).*)'],
 }
