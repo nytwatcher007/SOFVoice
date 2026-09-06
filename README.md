@@ -10,23 +10,29 @@ that are build failures, not review comments.
 
 These must be cleared before the portal accepts a real submission.
 
+### Deferred by the chairperson — still outstanding, not resolved
+
+Moved out of the blocking list at the chairperson's request. Recorded here
+rather than deleted, because a security item that is removed from the checklist
+is a security item that gets forgotten.
+
 - [ ] **Rotate the database password.** Supabase → Settings → Database → Reset
       database password. The current one was pasted into a chat transcript on
-      2026-09-06.
+      2026-09-06 and should be treated as public.
 - [ ] **Rotate the service-role key.** Same reason. Supabase → Settings → API.
-- [ ] **Verify the escalation contact's email address.** `src/lib/escalation.ts`
-      names **Akshay Muralidharan** (faculty/administration, outside the student
-      council) as the intended contact, but `contact` is still
-      `ESCALATION_EMAIL_UNSET` and a LAUNCH BLOCKER banner renders on every form.
-      Two things are outstanding:
-      **(a)** the address supplied was `akshay@sof.com`, which is **not** SoF's
-      domain — SoF publishes `info@theschooloffuture.com`, and `sof.com` belongs
-      to an unrelated party. Publishing it would route safeguarding disclosures
-      to a stranger and would fail *silently*. Send a test email to the real
-      address before wiring it in.
-      **(b)** he is expecting the role but has not formally confirmed it. A named
-      contact who doesn't respond is worse than none, because someone relied on
-      it.
+      This key bypasses all row-level security.
+
+### Blocking
+- [ ] **Verify the escalation address is deliverable.** Akshay Muralidharan has
+      **confirmed the role** — that part is done. The address currently in
+      `src/lib/escalation.ts` is `akshay@sof.com`, a **demo value**: `sof.com` is
+      not SoF's domain (SoF publishes `info@theschooloffuture.com`) and belongs
+      to an unrelated party.
+      Mail sent there reaches a stranger or nobody, and does so **silently** —
+      no bounce tells a student their disclosure went nowhere.
+      Fix: get his real address, **send a test email and confirm it arrives**,
+      then set `verified: true`. The LAUNCH BLOCKER banner renders on every form
+      until you do.
 - [ ] **Set a fresh access code and session secret.** `npm run gen:code`, then
       paste both into `.env.local` and into the Vercel project's environment
       variables. Do **not** reuse `SOF-VOICE-2026` — it appeared in a PDF that
