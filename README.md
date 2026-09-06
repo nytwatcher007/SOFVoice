@@ -29,8 +29,14 @@ These must be cleared before the portal accepts a real submission.
       does not save you. Before launch: confirm Vercel's log retention period,
       turn off any log drains, and satisfy yourself the exposure is acceptable.
       This is a hosting decision, not something the code can fix.
-- [ ] **Close the `ctid` gap.** Physical row order still reveals submission
-      sequence. See "Known gaps" in `CLAUDE.md`.
+- [ ] **Decide who may run raw SQL against production.** Submission order is
+      recoverable from Postgres system columns (`ctid`, `xmin`) and **no schema
+      change can prevent it** — tested, `CLUSTER` does not work. If the
+      chairperson keeps Supabase dashboard access, the anonymity promise is
+      weaker than what the cohort would be told. See "Known gaps" in
+      `CLAUDE.md`.
+- [ ] **Add the honest guarantee statement to the UI.** What the portal can and
+      cannot promise, next to the submit action — not an absolute claim.
 
 ## Setup
 

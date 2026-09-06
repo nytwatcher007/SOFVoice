@@ -117,34 +117,79 @@ by `created_on` then `ref_hash`.
 Recorded here rather than fixed mid-slice (see Build discipline). Both are real,
 both were confirmed empirically, and neither is closed by the current gate.
 
-### 1. Physical row order still reveals submission sequence
+### 1. Submission order cannot be hidden from raw SQL. Accept this.
 
-Invariant 4 removes `created_at` so that submission *order* cannot be recovered.
-It can be anyway: `select ctid from submissions order by ctid` returns exact
-insertion order. Verified 2026-09-06 — three probe rows came back `(0,3) (0,4)
-(0,5)` in insertion order. `id` is a v4 UUID and is safe; `ctid` is not.
+Invariant 4 removes `created_at` so submission *order* cannot be recovered.
+**It does not achieve that.** Postgres records row creation in system columns
+regardless of what our schema is called.
 
-This is reachable by anyone with direct SQL access — which includes the
-chairperson via the Supabase dashboard, not just an attacker.
+Measured 2026-09-06:
 
-Candidate fix: `cluster submissions using submissions_sort_idx` physically
-reorders rows into `(created_on desc, ref_hash)` — i.e. random within a day —
-destroying insertion order. Needs to run on a schedule. Fold into the term-end
-purge slice, and note that `vacuum full` alone does **not** randomise.
+- `select ctid from submissions order by ctid` → exact insertion order.
+- `select xmin from submissions order by xmin` → exact insertion order.
+  `xmin` is the creating transaction id, present on every row, and monotonic:
+  probes returned `1195, 1196, 1197, 1199, 1200`.
 
-### 2. The app's database identity is broader than this document says
+An earlier version of this file proposed `CLUSTER … USING submissions_sort_idx`
+as the fix. **That was tested and it does not work.** `CLUSTER` rewrote `ctid`
+and left `xmin` completely untouched, and rows inserted after it appended in
+order again immediately (`(0,4)`, `(0,5)`). There is no schema-level fix. Do not
+re-propose one.
 
-Invariants 5 and 6 describe access via the **service-role key**. The
-implementation instead connects as the `postgres` role over `DATABASE_URL`.
-Measured: `rolsuper=false`, `rolbypassrls=true`, `rolcreaterole=true`.
+**Therefore this is a threat-model decision, not a coding task**, and it must be
+settled before slice 6:
 
-So it is not a superuser, and it bypasses RLS exactly as `service_role` does —
-but it can also create roles, which `service_role` cannot. `SUPABASE_SERVICE_ROLE_KEY`
-is currently unused.
+> Who can run raw SQL against production?
 
-Decide before the admin slice: either move data access to `supabase-js` with the
-service-role key as written here, or amend invariants 5/6 to name the `postgres`
-role deliberately. Do not leave the spec and the code disagreeing.
+- If the answer is **only the application** — `ctid` and `xmin` are irrelevant.
+  The app sorts by `created_on, ref_hash` and never selects either. The promise
+  holds.
+- If the answer **includes the chairperson via the Supabase dashboard** — no fix
+  exists, and the anonymity promise is weaker than what the cohort is being told.
+
+Consequence if we want the strong promise: the chairperson dashboard must be the
+*only* route by which any council member ever sees a submission, and the
+chairperson must give up direct SQL access to a table in a project they own.
+Invariant 4 still earns its place — it stops order leaking through the
+*application* — but it was never sufficient on its own.
+
+### 2. Connection identity: do not "fix" this by switching to the service-role key
+
+Invariants 5 and 6 describe access via the **service-role key**. The code instead
+connects as `postgres` over `DATABASE_URL`. Measured: `rolsuper=false`,
+`rolbypassrls=true`, `rolcreaterole=true`.
+
+Both `postgres` and `service_role` set `BYPASSRLS`, so swapping one for the other
+just exchanges one over-privileged identity for another and changes nothing that
+matters.
+
+The right fix is a dedicated least-privilege role:
+
+- `sof_app` — `INSERT`, `SELECT`, `UPDATE` on `submissions`. **No `BYPASSRLS`,
+  no `CREATEROLE`, no DDL.** RLS policies then actually constrain the running
+  application instead of being bypassed.
+- A separate migration role holds DDL.
+
+This is the same instinct as the `CHECK` constraint on complaint anonymity —
+belt and braces at the database level — applied to connection identity. The
+version that matters: a leaked application credential must not hand over the
+whole project.
+
+### 3. Say what we can actually guarantee, on the portal itself
+
+The database stores no IP and no precise time. The **host** does — Vercel logs
+client IP against request timestamp, and with a cohort this small that
+correlates to the only submission in a six-hour bucket.
+
+No config change fixes this, so do not pretend one does. The deliverable is an
+honest statement in the UI, close to the submit action. Something of this shape:
+
+> Your name is never stored and cannot be recovered. Our hosting provider records
+> connection metadata for a limited period, which the council cannot access.
+
+That is a promise we can keep. An absolute claim of untraceability is one a
+sharp student would be right to disbelieve, and being caught overstating it
+would cost more trust than the caveat does.
 
 ## Cohort size is the dominant risk
 
