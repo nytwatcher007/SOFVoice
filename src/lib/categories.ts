@@ -29,3 +29,8 @@ export const SUBJECT_MIN = 3
 export const SUBJECT_MAX = 120
 export const BODY_MIN = 20
 export const BODY_MAX = 5000
+
+// Optional identity on suggestions only, and only behind the reveal toggle.
+// DPDP guidance in CLAUDE.md: name + one contact, do not add more fields.
+export const NAME_MAX = 80
+export const CONTACT_MAX = 120
