@@ -63,12 +63,20 @@ export default async function Home() {
             a one-way hash of the code is stored, so if you lose it nobody can look
             your submission up or recover it &mdash; including the chairperson.
           </p>
-          <Link
-            href="/track"
-            className="mt-4 inline-block text-sm font-semibold text-orange underline underline-offset-4"
-          >
-            Track a submission
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-4">
+            <Link
+              href="/track"
+              className="text-sm font-semibold text-orange underline underline-offset-4"
+            >
+              Track a submission
+            </Link>
+            <Link
+              href="/board"
+              className="text-sm font-semibold text-orange underline underline-offset-4"
+            >
+              Suggestion board
+            </Link>
+          </div>
         </div>
       </div>
 

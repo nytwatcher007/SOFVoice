@@ -78,7 +78,9 @@ suddenly stops working, check that it hasn't been swapped back to the direct hos
 | `npm run test:gate` | Access-gate suite. Needs `npm run dev` running. |
 | `npm run test:submission` | Submission HTTP path. Needs `npm run dev` running. |
 | `npm run test:admin` | Admin authorisation. Needs `npm run dev` running. |
+| `npm run test:board` | Suggestion board. Needs `npm run dev` running. |
 | `npm run test:privileges` | Proves the app's DB role is actually narrow |
+| `npm run test:all` | Every suite, in order |
 | `npm run admin:add` | Create + authorise a council account |
 | `npm run db:app-role` | Create/rotate the `sof_app` role, print its URL |
 
@@ -173,7 +175,10 @@ too. This is deliberate — do not "fix" it by embedding Polysans.
 Both sides now work: submitters enter → submit → track, and the council signs
 in → reviews → replies.
 
-**Next:** public suggestion board → term-end purge.
+**Slice 7:** least-privilege database role (`sof_app`).
+**Slice 8:** public suggestion board with moderation.
+
+**Next:** term-end purge, then deploy.
 
 ### Admin accounts
 
@@ -222,23 +227,30 @@ a shared campus machine. The submitter already knows what they wrote; a finder
 gets a subject line rather than the whole account — which, in a small cohort, is
 the most identifying part.
 
-### The public suggestion board is deferred, on purpose
+### The public suggestion board
 
-Migration `0002` adds `published` and `upvotes`, but there is no board UI yet
-and **no votes table**. Two reasons:
+`/board` shows suggestions the council has published. Three rules it enforces:
 
-1. **Upvote dedupe cannot use accounts, because there are none.** A
-   `votes(submission_id, voter_id)` table is precisely the identity anchor
-   invariant 1 forbids, and a voter id that also appeared on a submission would
-   become a correlation handle. Dedupe will be client-side only, so counts are
-   *interest*, not an exact tally, and the UI must say so.
-2. **Publishing needs moderation**, and moderation lives in the dashboard.
-   Publishing anonymous content to a small cohort unreviewed means an
-   identifying or abusive post is live before anyone has read it.
+**1. No names, ever — this is a consent decision, not a schema one.**
+The reveal toggle tells people their name is *"visible to the student council"*.
+Publishing it to the whole cohort is a wider audience than anyone agreed to, so
+the board shows no attribution at all. If crediting submitters is ever wanted, it
+needs a **second, separate opt-in on the form first** — do not just add `name` to
+the query in `src/lib/board.ts`.
 
-A `check (not published or kind = 'suggestion')` constraint means a complaint
-can never reach the board, enforced by the database rather than by remembering
-to filter.
+**2. Counts are "interest", not votes.**
+There is **no votes table and no voter id**. A `votes(submission_id, voter_id)`
+table is precisely the identity anchor invariant 1 forbids, and a voter id that
+also appeared on a submission would become a correlation handle between who
+votes and who submits. Dedupe is therefore client-side (`localStorage`) and
+genuinely defeatable — so the UI says so rather than implying a ballot.
+
+**3. Complaints can never reach the board.**
+`check (not published or kind = 'suggestion')` enforces it in the database, not
+by remembering to filter. The publish control isn't even rendered for complaints.
+
+Publishing requires a confirmation step that restates the cohort-size risk, and
+entries can be unpublished — though that cannot unsee it for anyone who read it.
 
 ### Why complaints are anonymous three times over
 
