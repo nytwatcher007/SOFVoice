@@ -1,6 +1,9 @@
 import { ComingInNextSlice } from '@/components/ComingInNextSlice'
+import { requireMember } from '@/lib/session'
 
-export default function TrackPage() {
+export default async function TrackPage() {
+  await requireMember()
+
   return (
     <ComingInNextSlice
       title="Track a submission"

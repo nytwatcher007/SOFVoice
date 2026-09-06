@@ -19,9 +19,11 @@ These must be cleared before the portal accepts a real submission.
       on every form. It must name a real person **outside the student council**
       who can act on a disclosure of harm — a programme director, faculty lead,
       or the institution's grievance officer. See `CLAUDE.md` lines 125-138.
-- [ ] **Set real access codes.** `MEMBER_ACCESS_CODE` / `ADMIN_ACCESS_CODE` in
-      `.env.local`. Do **not** reuse `SOF-VOICE-2026` / `CHAIR-2026` — those
-      appeared in a PDF that has been shared around.
+- [ ] **Set a fresh access code and session secret.** `npm run gen:code`, then
+      paste both into `.env.local` and into the Vercel project's environment
+      variables. Do **not** reuse `SOF-VOICE-2026` — it appeared in a PDF that
+      has been shared around. The development values currently in `.env.local`
+      should be regarded as burnt.
 - [ ] **Check what the host logs.** The database stores no IP and no precise
       time, but Vercel's request logs record client IP against request
       timestamp. With a cohort this small, matching a log entry to the only
@@ -65,6 +67,28 @@ suddenly stops working, check that it hasn't been swapped back to the direct hos
 | `npm run db:check` | Prints connection identity and public tables |
 | `npm run db:migrate` | Applies `supabase/migrations/*.sql`, tracked in `_migrations` |
 | `npm run test:anonymity` | **The gate.** Must pass before any commit. |
+| `npm run test:gate` | Access-gate suite. Needs `npm run dev` running. |
+| `npm run gen:code` | Prints a fresh access code + session secret |
+
+## The access gate
+
+Closed circuit: one shared code for students and faculty, no accounts. There is
+no identity for a submission to be linked to — that is the whole design.
+
+Enforcement is **two layers, deliberately**:
+
+1. `src/proxy.ts` — optimistic cookie-*presence* check, for redirect UX only.
+   Next 16 renamed `middleware.ts` to `proxy.ts`, and its docs state it
+   "should not be used as a full session management or authorization solution".
+2. `requireMember()` in `src/lib/session.ts` — the real check, called inside
+   every protected page and route handler.
+
+Do not move authorization into the proxy. The forgery test (`test:gate` #5)
+passes precisely because layer 2 catches what layer 1 waves through.
+
+The session cookie carries **a role and an expiry, signed with HMAC-SHA256**.
+No name, no user id, and no session table — a session row would be exactly the
+identity anchor invariant 1 forbids.
 
 ## The anonymity gate
 
