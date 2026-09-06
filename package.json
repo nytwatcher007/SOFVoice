@@ -18,7 +18,9 @@
     "db:app-role": "node --env-file=.env.local scripts/setup-app-role.mjs",
     "test:privileges": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs scripts/test-privileges.mts",
     "test:board": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs scripts/test-board.mts",
-    "test:all": "npm run test:anonymity && npm run test:privileges && npm run test:gate && npm run test:submission && npm run test:admin && npm run test:board"
+    "test:all": "npm run test:anonymity && npm run test:privileges && npm run test:gate && npm run test:submission && npm run test:admin && npm run test:board && npm run test:purge",
+    "purge": "node --env-file=.env.local scripts/purge.mjs",
+    "test:purge": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs scripts/test-purge.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",

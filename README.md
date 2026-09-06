@@ -85,6 +85,8 @@ suddenly stops working, check that it hasn't been swapped back to the direct hos
 | `npm run test:submission` | Submission HTTP path. Needs `npm run dev` running. |
 | `npm run test:admin` | Admin authorisation. Needs `npm run dev` running. |
 | `npm run test:board` | Suggestion board. Needs `npm run dev` running. |
+| `npm run test:purge` | Term-end purge rules |
+| `npm run purge` | Dry run of the purge; `-- --confirm` to delete |
 | `npm run test:privileges` | Proves the app's DB role is actually narrow |
 | `npm run test:all` | Every suite, in order |
 | `npm run admin:add` | Create + authorise a council account |
@@ -184,7 +186,41 @@ in → reviews → replies.
 **Slice 7:** least-privilege database role (`sof_app`).
 **Slice 8:** public suggestion board with moderation.
 
-**Next:** term-end purge, then deploy.
+**Slice 9:** term-end purge.
+
+**Next:** deploy.
+
+### The term-end purge
+
+Resolved and dismissed entries are deleted 180 days after they were **closed**
+(not after they were submitted — otherwise something submitted 200 days ago and
+resolved yesterday would vanish immediately, taking a reply the submitter may
+never have read). A `resolved_on` date is stamped by trigger on close and
+cleared on reopen.
+
+**Escalated entries are never purged**, however old. Those concern harm to a
+person and may be needed if something is investigated later.
+`new` and `reviewing` are untouched too — silently deleting a complaint nobody
+got round to is the opposite of accountability.
+
+It runs **inside the database** via `pg_cron`, monthly. That is the only way to
+be genuinely automatic here: `sof_app` deliberately has no `DELETE`, and
+`DATABASE_ADMIN_URL` must never exist in production. **`sof_app` cannot execute
+the purge function either** — a deleting function callable by the app role would
+hand back exactly the capability slice 7 removed, so `EXECUTE` is revoked from
+it (functions are `PUBLIC`-executable by default, so that revoke is doing real
+work).
+
+To see what the scheduled job is about to remove:
+
+```bash
+npm run purge                 # dry run — shows what would go, deletes nothing
+npm run purge -- --confirm    # actually deletes
+npm run purge -- --days 90    # different retention window
+```
+
+Dry run is the default deliberately. There is no undo, and no backup of this
+data outside Supabase's own.
 
 ### Admin accounts
 
