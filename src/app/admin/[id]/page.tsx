@@ -71,7 +71,13 @@ export default async function AdminSubmissionPage({
         {s.body}
       </div>
 
-      <SubmissionActions id={s.id} status={s.status} reply={s.reply} />
+      <SubmissionActions
+        id={s.id}
+        status={s.status}
+        reply={s.reply}
+        kind={s.kind}
+        published={s.published}
+      />
     </div>
   )
 }

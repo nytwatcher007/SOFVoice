@@ -73,7 +73,11 @@ export async function getSubmission(id: string): Promise<AdminSubmission | null>
 
 export async function updateSubmission(
   id: string,
-  changes: { status?: SubmissionStatus; reply?: string | null }
+  changes: {
+    status?: SubmissionStatus
+    reply?: string | null
+    published?: boolean
+  }
 ): Promise<AdminSubmission | null> {
   const sets: string[] = []
   const values: unknown[] = []
@@ -85,6 +89,13 @@ export async function updateSubmission(
   if (changes.reply !== undefined) {
     values.push(changes.reply)
     sets.push(`reply = $${values.length}`)
+  }
+  if (changes.published !== undefined) {
+    // The submissions_only_suggestions_published CHECK constraint refuses this
+    // for a complaint, so an accidental publish of an anonymous complaint is
+    // impossible at the storage layer rather than merely unlikely in the UI.
+    values.push(changes.published)
+    sets.push(`published = $${values.length}`)
   }
   if (!sets.length) return getSubmission(id)
 

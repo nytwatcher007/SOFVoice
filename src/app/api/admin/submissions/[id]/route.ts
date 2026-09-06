@@ -61,13 +61,27 @@ export async function PATCH(
         ? body.reply.trim() || null
         : null
 
-  if (!status && reply === undefined) {
+  const published =
+    typeof body.published === 'boolean' ? body.published : undefined
+
+  if (!status && reply === undefined && published === undefined) {
     return NextResponse.json({ error: 'Nothing to change.' }, { status: 400 })
   }
 
-  const submission = await updateSubmission(id, { status, reply })
-  if (!submission) {
-    return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+  try {
+    const submission = await updateSubmission(id, { status, reply, published })
+    if (!submission) {
+      return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+    }
+    return NextResponse.json({ submission })
+  } catch (e) {
+    // 23514 = check_violation, i.e. an attempt to publish a complaint.
+    if ((e as { code?: string }).code === '23514') {
+      return NextResponse.json(
+        { error: 'Complaints can never be published to the board.' },
+        { status: 400 }
+      )
+    }
+    throw e
   }
-  return NextResponse.json({ submission })
 }

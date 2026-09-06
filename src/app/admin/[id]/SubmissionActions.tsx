@@ -18,21 +18,27 @@ export function SubmissionActions({
   id,
   status,
   reply,
+  kind,
+  published,
 }: {
   id: string
   status: SubmissionStatus
   reply: string | null
+  kind: 'complaint' | 'suggestion'
+  published: boolean
 }) {
   const router = useRouter()
   const [current, setCurrent] = useState<SubmissionStatus>(status)
   const [text, setText] = useState(reply ?? '')
+  const [isPublished, setIsPublished] = useState(published)
+  const [confirming, setConfirming] = useState(false)
   const [pending, setPending] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const configured = isEscalationContactConfigured()
 
-  async function save(next?: SubmissionStatus) {
+  async function patch(payload: Record<string, unknown>) {
     setPending(true)
     setError(null)
     setSaved(false)
@@ -40,18 +46,30 @@ export function SubmissionActions({
     const res = await fetch(`/api/admin/submissions/${id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ status: next ?? current, reply: text }),
+      body: JSON.stringify(payload),
     })
 
-    if (res.ok) {
-      if (next) setCurrent(next)
-      setSaved(true)
-      router.refresh()
-    } else {
+    const ok = res.ok
+    if (!ok) {
       const data = await res.json().catch(() => ({}))
       setError(data.error ?? 'Could not save.')
+    } else {
+      setSaved(true)
+      router.refresh()
     }
     setPending(false)
+    return ok
+  }
+
+  async function save(next?: SubmissionStatus) {
+    const ok = await patch({ status: next ?? current, reply: text })
+    if (ok && next) setCurrent(next)
+  }
+
+  async function setPublished(next: boolean) {
+    const ok = await patch({ published: next })
+    if (ok) setIsPublished(next)
+    setConfirming(false)
   }
 
   return (
@@ -92,6 +110,81 @@ export function SubmissionActions({
               status currently routes nowhere. Set ESCALATION_CONTACT in
               src/lib/escalation.ts before launch.
             </span>
+          )}
+        </div>
+      )}
+
+      {/* Publishing is only offered for suggestions. Complaints are refused by
+          the database anyway (submissions_only_suggestions_published), but not
+          showing the control means nobody has to discover that the hard way. */}
+      {kind === 'suggestion' && (
+        <div className="mt-8 border-t border-hairline pt-6">
+          <h2 className="text-sm font-semibold text-cream">Public board</h2>
+
+          {isPublished ? (
+            <>
+              <p className="mt-2 text-sm text-cream/70">
+                Published. Everyone with the access code can read this.
+              </p>
+              <button
+                onClick={() => setPublished(false)}
+                disabled={pending}
+                className="mt-3 rounded-lg border border-hairline px-4 py-2 text-sm font-semibold text-cream hover:border-orange disabled:opacity-40"
+              >
+                {pending ? 'Working…' : 'Unpublish'}
+              </button>
+              <p className="mt-2 text-xs text-cream/40">
+                Unpublishing removes it from the board, but cannot unsee it for
+                anyone who already read it.
+              </p>
+            </>
+          ) : !confirming ? (
+            <>
+              <p className="mt-2 text-sm text-cream/70">Not on the board.</p>
+              <button
+                onClick={() => setConfirming(true)}
+                disabled={pending}
+                className="mt-3 rounded-lg border border-hairline px-4 py-2 text-sm font-semibold text-cream hover:border-orange disabled:opacity-40"
+              >
+                Publish to board…
+              </button>
+            </>
+          ) : (
+            <div className="mt-3 rounded border border-amber/50 bg-amber/10 p-4">
+              <p className="text-sm font-semibold text-amber">
+                Publish this to the whole cohort?
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-cream/80">
+                <li>
+                  Everyone with the access code will be able to read it. You
+                  can&rsquo;t undo their having read it.
+                </li>
+                <li>
+                  In a cohort this small, phrasing can identify the author even
+                  though no name is shown. Read it once more with that in mind.
+                </li>
+                <li>
+                  The board never shows names, even if this person gave one
+                  &mdash; they consented to the council seeing it, not everyone.
+                </li>
+              </ul>
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={() => setPublished(true)}
+                  disabled={pending}
+                  className="rounded-lg bg-orange px-4 py-2 text-sm font-semibold text-espresso disabled:opacity-40"
+                >
+                  {pending ? 'Publishing…' : 'Yes, publish'}
+                </button>
+                <button
+                  onClick={() => setConfirming(false)}
+                  disabled={pending}
+                  className="rounded-lg border border-hairline px-4 py-2 text-sm font-semibold text-cream/70"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
