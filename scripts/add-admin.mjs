@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Create a council admin account and authorise it.
  *
  * Usage:
@@ -6,7 +6,7 @@
  *
  * Creates the Supabase Auth user (email pre-confirmed) if needed, then inserts
  * the admin_users row that actually grants access. Being an authenticated
- * Supabase user is not enough — the row is what matters, which is why
+ * Supabase user is not enough â€” the row is what matters, which is why
  * revocation is `npm run admin:remove` and takes effect immediately.
  *
  * Prints a generated password once. MFA enrolment happens on first sign-in and
@@ -42,7 +42,7 @@ if (error) {
     console.error('Could not create user:', error.message)
     process.exit(1)
   }
-  // Already exists — find them and leave their password alone.
+  // Already exists â€” find them and leave their password alone.
   const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 })
   const found = list?.users.find((u) => u.email?.toLowerCase() === email.toLowerCase())
   if (!found) {
@@ -50,7 +50,7 @@ if (error) {
     process.exit(1)
   }
   userId = found.id
-  console.log(`User already existed — password unchanged.`)
+  console.log(`User already existed â€” password unchanged.`)
 } else {
   userId = created.user.id
   console.log(`\nCreated ${email}`)
@@ -59,7 +59,7 @@ if (error) {
 }
 
 const client = new pg.Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_ADMIN_URL,
   ssl: { rejectUnauthorized: false },
 })
 await client.connect()

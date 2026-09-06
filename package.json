@@ -14,7 +14,9 @@
     "test:gate": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs scripts/test-gate.mts",
     "test:submission": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs scripts/test-submission.mts",
     "test:admin": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs scripts/test-admin.mts",
-    "admin:add": "node --env-file=.env.local scripts/add-admin.mjs"
+    "admin:add": "node --env-file=.env.local scripts/add-admin.mjs",
+    "db:app-role": "node --env-file=.env.local scripts/setup-app-role.mjs",
+    "test:privileges": "node --env-file=.env.local ./node_modules/tsx/dist/cli.mjs scripts/test-privileges.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",

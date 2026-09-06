@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Submission suite (slice 3).
  *
- * The first suite that drives the REAL HTTP path — which is what the gate's
+ * The first suite that drives the REAL HTTP path â€” which is what the gate's
  * assertion 1 was always reaching for. test-anonymity.mts calls
  * createSubmission() directly; this posts to the route a browser posts to, then
  * reads the resulting row straight out of Postgres.
@@ -16,7 +16,7 @@ const BASE = process.env.TEST_BASE_URL ?? 'http://localhost:3000'
 const SECRET = process.env.SESSION_SECRET!
 
 const client = new pg.Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_ADMIN_URL,
   ssl: { rejectUnauthorized: false },
 })
 
@@ -32,7 +32,7 @@ function check(n: number, label: string, ok: boolean, detail = '') {
 }
 
 // Mint a valid member cookie directly, so this suite doesn't depend on the
-// access code being correct — that is test:gate's job.
+// access code being correct â€” that is test:gate's job.
 function memberCookie(): string {
   const payload = { role: 'member', exp: Math.floor(Date.now() / 1000) + 600 }
   const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')
@@ -81,7 +81,7 @@ try {
     )
   }
 
-  // 2. THE ONE THAT MATTERS — inject name/contact, confirm NULL in the row.
+  // 2. THE ONE THAT MATTERS â€” inject name/contact, confirm NULL in the row.
   {
     const subject = 'PROBE injected identity'
     createdSubjects.push(subject)
@@ -122,7 +122,7 @@ try {
   {
     const subject = 'PROBE bad category'
     const res = await post(
-      { category: 'Year 2 · Marketing track', subject, body: 'x'.repeat(30) },
+      { category: 'Year 2 Â· Marketing track', subject, body: 'x'.repeat(30) },
       cookie
     )
     const row = await rowBySubject(subject)
@@ -340,7 +340,7 @@ try {
     )
   }
 
-  // 14. THE NARROWING — no body, name, contact, id or ref_hash may come back.
+  // 14. THE NARROWING â€” no body, name, contact, id or ref_hash may come back.
   {
     const res = await track({ code: trackable.referenceCode }, cookie)
     const raw = await res.text()
@@ -371,7 +371,7 @@ try {
   {
     const res = await track({ code: 'SV-ZZZZZZZZ' }, cookie)
     const data = await res.json().catch(() => ({}))
-    // Check for the absence of the `submission` KEY, not the word — the error
+    // Check for the absence of the `submission` KEY, not the word â€” the error
     // copy legitimately reads "No submission found for that code."
     check(
       16,

@@ -1,9 +1,9 @@
-// One-off audit: what can the app's connection identity actually do, and is
+﻿// One-off audit: what can the app's connection identity actually do, and is
 // physical insertion order recoverable? Run: node --env-file=.env.local scripts/audit-privs.mjs
 import pg from 'pg'
 
 const c = new pg.Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_ADMIN_URL,
   ssl: { rejectUnauthorized: false },
 })
 await c.connect()

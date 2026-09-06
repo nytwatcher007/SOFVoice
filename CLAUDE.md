@@ -161,27 +161,40 @@ Invariant 4 still earns its place — it stops order leaking through the
 *application* — but it was never sufficient on its own, and it is the discipline
 above that closes the gap.
 
-### 2. Connection identity: do not "fix" this by switching to the service-role key
+### 2. Connection identity — CLOSED in slice 7
 
-Invariants 5 and 6 describe access via the **service-role key**. The code instead
-connects as `postgres` over `DATABASE_URL`. Measured: `rolsuper=false`,
-`rolbypassrls=true`, `rolcreaterole=true`.
+Invariants 5 and 6 described access via the service-role key. Switching to it
+would have been pointless: `postgres` and `service_role` both set `BYPASSRLS`,
+so that swaps one over-privileged identity for another.
 
-Both `postgres` and `service_role` set `BYPASSRLS`, so swapping one for the other
-just exchanges one over-privileged identity for another and changes nothing that
-matters.
+**Resolved** by a dedicated least-privilege role, `sof_app`, verified by
+`npm run test:privileges`:
 
-The right fix is a dedicated least-privilege role:
+| | `postgres` (before) | `sof_app` (now) |
+|---|---|---|
+| `rolbypassrls` | true | **false** |
+| `rolcreaterole` | true | **false** |
+| `DELETE` / `TRUNCATE` | granted | **refused (42501)** |
+| DDL | yes | **refused** |
+| `SET ROLE postgres` | n/a | **refused** |
 
-- `sof_app` — `INSERT`, `SELECT`, `UPDATE` on `submissions`. **No `BYPASSRLS`,
-  no `CREATEROLE`, no DDL.** RLS policies then actually constrain the running
-  application instead of being bypassed.
-- A separate migration role holds DDL.
+Two connection strings now exist and must stay separate:
 
-This is the same instinct as the `CHECK` constraint on complaint anonymity —
-belt and braces at the database level — applied to connection identity. The
-version that matters: a leaked application credential must not hand over the
-whole project.
+- `DATABASE_URL` → `sof_app`. The only one the deployed app ever sees.
+- `DATABASE_ADMIN_URL` → `postgres`. Migrations, tests, admin scripts.
+  **Must not be set in the production environment.**
+
+Read invariants 5 and 6 as naming `sof_app`, not the service-role key.
+
+Two things to know before changing this:
+
+- Supabase's `supautils` extension blocks `alter role … nosuperuser`, so these
+  attributes can only be set at `CREATE` time. `scripts/setup-app-role.mjs`
+  therefore *verifies* them and refuses to continue if they are wrong, rather
+  than trying to re-assert them.
+- The term-end purge will need its own privileged script, precisely because
+  `sof_app` cannot delete. That is intended, not an obstacle to route around —
+  do not grant `DELETE` to `sof_app` to make a purge easier.
 
 ### 3. Say what we can actually guarantee, on the portal itself
 
