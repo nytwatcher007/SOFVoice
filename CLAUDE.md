@@ -136,22 +136,30 @@ and left `xmin` completely untouched, and rows inserted after it appended in
 order again immediately (`(0,4)`, `(0,5)`). There is no schema-level fix. Do not
 re-propose one.
 
-**Therefore this is a threat-model decision, not a coding task**, and it must be
-settled before slice 6:
+**This was a threat-model decision, not a coding task.**
 
 > Who can run raw SQL against production?
 
-- If the answer is **only the application** — `ctid` and `xmin` are irrelevant.
-  The app sorts by `created_on, ref_hash` and never selects either. The promise
-  holds.
-- If the answer **includes the chairperson via the Supabase dashboard** — no fix
-  exists, and the anonymity promise is weaker than what the cohort is being told.
+**DECIDED 2026-09-06: only the application.** The chairperson gives up the
+Supabase SQL editor and table editor for this project and reads submissions
+*only* through the admin dashboard. `ctid` and `xmin` therefore become
+irrelevant — the app sorts by `created_on, ref_hash` and never selects either —
+and the strong anonymity promise holds honestly.
 
-Consequence if we want the strong promise: the chairperson dashboard must be the
-*only* route by which any council member ever sees a submission, and the
-chairperson must give up direct SQL access to a table in a project they own.
+This binds the design from slice 6 onwards:
+
+- The admin dashboard is the **only** route by which any council member sees a
+  submission. If something is not visible there, the answer is to add it to the
+  dashboard, not to open a SQL console.
+- Anything needed for debugging goes through a migration or a script in
+  `scripts/`, reviewed like any other code — never an ad-hoc query against
+  production.
+- The `sof_app` role below is what makes this enforceable rather than a promise
+  someone keeps by remembering to.
+
 Invariant 4 still earns its place — it stops order leaking through the
-*application* — but it was never sufficient on its own.
+*application* — but it was never sufficient on its own, and it is the discipline
+above that closes the gap.
 
 ### 2. Connection identity: do not "fix" this by switching to the service-role key
 
