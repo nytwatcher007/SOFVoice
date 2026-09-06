@@ -112,6 +112,40 @@ accountability requires the opposite. Do not unify these.
 There is no `created_at timestamptz`. Do not add one "for sorting". Sorting is
 by `created_on` then `ref_hash`.
 
+## Known gaps — found in slice 1, not yet closed
+
+Recorded here rather than fixed mid-slice (see Build discipline). Both are real,
+both were confirmed empirically, and neither is closed by the current gate.
+
+### 1. Physical row order still reveals submission sequence
+
+Invariant 4 removes `created_at` so that submission *order* cannot be recovered.
+It can be anyway: `select ctid from submissions order by ctid` returns exact
+insertion order. Verified 2026-09-06 — three probe rows came back `(0,3) (0,4)
+(0,5)` in insertion order. `id` is a v4 UUID and is safe; `ctid` is not.
+
+This is reachable by anyone with direct SQL access — which includes the
+chairperson via the Supabase dashboard, not just an attacker.
+
+Candidate fix: `cluster submissions using submissions_sort_idx` physically
+reorders rows into `(created_on desc, ref_hash)` — i.e. random within a day —
+destroying insertion order. Needs to run on a schedule. Fold into the term-end
+purge slice, and note that `vacuum full` alone does **not** randomise.
+
+### 2. The app's database identity is broader than this document says
+
+Invariants 5 and 6 describe access via the **service-role key**. The
+implementation instead connects as the `postgres` role over `DATABASE_URL`.
+Measured: `rolsuper=false`, `rolbypassrls=true`, `rolcreaterole=true`.
+
+So it is not a superuser, and it bypasses RLS exactly as `service_role` does —
+but it can also create roles, which `service_role` cannot. `SUPABASE_SERVICE_ROLE_KEY`
+is currently unused.
+
+Decide before the admin slice: either move data access to `supabase-js` with the
+service-role key as written here, or amend invariants 5/6 to name the `postgres`
+role deliberately. Do not leave the spec and the code disagreeing.
+
 ## Cohort size is the dominant risk
 
 SOF runs a single small, curated cohort. With a population this size, schema

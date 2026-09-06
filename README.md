@@ -22,6 +22,15 @@ These must be cleared before the portal accepts a real submission.
 - [ ] **Set real access codes.** `MEMBER_ACCESS_CODE` / `ADMIN_ACCESS_CODE` in
       `.env.local`. Do **not** reuse `SOF-VOICE-2026` / `CHAIR-2026` — those
       appeared in a PDF that has been shared around.
+- [ ] **Check what the host logs.** The database stores no IP and no precise
+      time, but Vercel's request logs record client IP against request
+      timestamp. With a cohort this small, matching a log entry to the only
+      submission in a 6-hour bucket deanonymizes it — the database being clean
+      does not save you. Before launch: confirm Vercel's log retention period,
+      turn off any log drains, and satisfy yourself the exposure is acceptable.
+      This is a hosting decision, not something the code can fix.
+- [ ] **Close the `ctid` gap.** Physical row order still reveals submission
+      sequence. See "Known gaps" in `CLAUDE.md`.
 
 ## Setup
 
