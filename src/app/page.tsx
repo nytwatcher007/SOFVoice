@@ -1,7 +1,12 @@
 import Link from 'next/link'
 import { EscalationNotice } from '@/components/EscalationNotice'
+import { requireMember } from '@/lib/session'
 
-export default function Home() {
+export default async function Home() {
+  // The real gate. proxy.ts only does an optimistic cookie-presence check and
+  // can be bypassed, so every protected page verifies for itself.
+  await requireMember()
+
   return (
     <div className="mx-auto max-w-5xl px-5 py-16 sm:py-24">
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber">

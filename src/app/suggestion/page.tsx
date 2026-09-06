@@ -1,6 +1,9 @@
 import { ComingInNextSlice } from '@/components/ComingInNextSlice'
+import { requireMember } from '@/lib/session'
 
-export default function SuggestionPage() {
+export default async function SuggestionPage() {
+  await requireMember()
+
   return (
     <ComingInNextSlice
       title="Make a suggestion"

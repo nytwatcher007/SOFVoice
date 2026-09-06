@@ -1,6 +1,9 @@
 import { ComingInNextSlice } from '@/components/ComingInNextSlice'
+import { requireMember } from '@/lib/session'
 
-export default function ComplaintPage() {
+export default async function ComplaintPage() {
+  await requireMember()
+
   return (
     <ComingInNextSlice
       title="Raise a concern"

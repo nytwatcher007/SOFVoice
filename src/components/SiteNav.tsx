@@ -1,7 +1,11 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { getSession } from '@/lib/session'
+import { LeaveButton } from './LeaveButton'
 
-export function SiteNav() {
+export async function SiteNav() {
+  const session = await getSession()
+
   return (
     <header className="sticky top-0 z-50 border-b border-hairline bg-espresso/90 backdrop-blur">
       <nav className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5">
@@ -20,7 +24,12 @@ export function SiteNav() {
           </span>
         </Link>
 
-        <span className="text-xs text-cream/50">Student Council &middot; Kochi</span>
+        <div className="flex items-center gap-4">
+          <span className="hidden text-xs text-cream/50 sm:inline">
+            Student Council &middot; Kochi
+          </span>
+          {session && <LeaveButton />}
+        </div>
       </nav>
     </header>
   )
