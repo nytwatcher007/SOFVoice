@@ -73,16 +73,36 @@ export async function createSubmission(
   return { id: rows[0].id, referenceCode }
 }
 
+export interface TrackedSubmission {
+  kind: SubmissionKind
+  category: string
+  subject: string
+  status: SubmissionStatus
+  reply: string | null
+  created_on: Date
+}
+
 /**
  * Look a submission up by the code the submitter typed. Works only by hashing
  * what they give us — there is no way to enumerate or recover a lost code.
+ *
+ * Deliberately does NOT return `body`, `name`, `contact`, `id` or `ref_hash`.
+ * Anyone holding the code can call this, and a code can be shoulder-surfed or
+ * left behind on a shared campus machine. The submitter already knows what they
+ * wrote; a finder should get a subject line, not the whole account — which in a
+ * small cohort is the most identifying part of a submission.
+ *
+ * The dashboard needs the full row, but that is a different query with a
+ * different caller.
  */
-export async function findByReferenceCode(code: string) {
+export async function findByReferenceCode(
+  code: string
+): Promise<TrackedSubmission | null> {
   const normalized = normalizeReferenceCode(code)
   if (!normalized) return null
 
-  const { rows } = await query(
-    `select id, kind, category, subject, body, status, reply, created_on
+  const { rows } = await query<TrackedSubmission>(
+    `select kind, category, subject, status, reply, created_on
        from public.submissions
       where ref_hash = $1`,
     [hashReferenceCode(normalized)]
