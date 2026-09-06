@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Admin authorisation suite (slice 6).
  *
  * The question this answers: can anything short of a fully-authenticated,
@@ -22,7 +22,7 @@ function check(n: number, label: string, ok: boolean, detail = '') {
   }
 }
 
-/** A valid MEMBER cookie — gated in, but must never be an admin. */
+/** A valid MEMBER cookie â€” gated in, but must never be an admin. */
 function memberCookie(): string {
   const payload = { role: 'member', exp: Math.floor(Date.now() / 1000) + 600 }
   const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')
@@ -81,7 +81,7 @@ console.log('\nAdmin authorisation\n')
   check(2, 'a valid member session cannot reach the admin API', allDenied, bad.join('; '))
 }
 
-// 3. A forged role:admin gate cookie is worthless — admin identity does not
+// 3. A forged role:admin gate cookie is worthless â€” admin identity does not
 //    come from that cookie at all.
 {
   const cookie = forgedAdminCookie()
@@ -138,7 +138,7 @@ console.log('\nAdmin authorisation\n')
 //    An authenticated Supabase user with no admin_users row must not be an admin.
 {
   const client = new pg.Client({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_ADMIN_URL,
     ssl: { rejectUnauthorized: false },
   })
   await client.connect()

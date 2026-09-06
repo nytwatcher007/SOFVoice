@@ -1,4 +1,4 @@
-// Applies supabase/migrations/*.sql in filename order, tracked in _migrations.
+﻿// Applies supabase/migrations/*.sql in filename order, tracked in _migrations.
 // Run: npm run db:migrate
 import pg from 'pg'
 import { readdir, readFile } from 'node:fs/promises'
@@ -7,7 +7,7 @@ import { join } from 'node:path'
 const DIR = 'supabase/migrations'
 
 const c = new pg.Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_ADMIN_URL,
   ssl: { rejectUnauthorized: false },
 })
 

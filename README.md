@@ -78,7 +78,34 @@ suddenly stops working, check that it hasn't been swapped back to the direct hos
 | `npm run test:gate` | Access-gate suite. Needs `npm run dev` running. |
 | `npm run test:submission` | Submission HTTP path. Needs `npm run dev` running. |
 | `npm run test:admin` | Admin authorisation. Needs `npm run dev` running. |
+| `npm run test:privileges` | Proves the app's DB role is actually narrow |
 | `npm run admin:add` | Create + authorise a council account |
+| `npm run db:app-role` | Create/rotate the `sof_app` role, print its URL |
+
+## The application's database role
+
+The app connects as **`sof_app`**, not `postgres`. Measured differences:
+
+| | `postgres` | `sof_app` |
+|---|---|---|
+| `rolbypassrls` | true | **false** |
+| `rolcreaterole` | true | **false** |
+| `DELETE` / `TRUNCATE` | granted | **refused** |
+| DDL | yes | **refused** |
+
+A leaked copy of the application credential therefore cannot erase every
+complaint in the school, reshape the schema, or escalate to a privileged role.
+`npm run test:privileges` asserts all of that — including that the app still
+works, because a least-privilege role that breaks the product is not a win.
+
+Switching to the service-role key would **not** have achieved this: `service_role`
+also sets `BYPASSRLS`.
+
+Two connection strings, and they must stay separate:
+
+- `DATABASE_URL` → `sof_app`. The only one the deployed app sees.
+- `DATABASE_ADMIN_URL` → `postgres`. Migrations, tests, admin scripts.
+  **Do not set this in the Vercel production environment.**
 | `npm run gen:code` | Prints a fresh access code + session secret |
 
 ## The access gate

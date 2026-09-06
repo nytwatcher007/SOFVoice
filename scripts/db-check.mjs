@@ -1,8 +1,8 @@
-// Connectivity probe. Run: node --env-file=.env.local scripts/db-check.mjs
+﻿// Connectivity probe. Run: node --env-file=.env.local scripts/db-check.mjs
 import pg from 'pg'
 
 const c = new pg.Client({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_ADMIN_URL,
   ssl: { rejectUnauthorized: false },
 })
 
