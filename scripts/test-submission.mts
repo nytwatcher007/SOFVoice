@@ -295,6 +295,91 @@ try {
       detail
     )
   }
+  // ---------------------------------------------------------------------------
+  // Track by reference (slice 5).
+  // ---------------------------------------------------------------------------
+  const track = (payload: unknown, cookieValue?: string) =>
+    fetch(`${BASE}/api/track`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(cookieValue ? { cookie: cookieValue } : {}),
+      },
+      body: JSON.stringify(payload),
+    })
+
+  // Create one submission to look up.
+  const trackSubject = 'PROBE trackable'
+  createdSubjects.push(trackSubject)
+  const trackable = await (
+    await post(
+      {
+        category: 'Facilities & campus',
+        subject: trackSubject,
+        body: 'Distinctive body text that must never come back from track.',
+      },
+      cookie
+    )
+  ).json()
+
+  // 12. No session -> 401.
+  {
+    const res = await track({ code: trackable.referenceCode })
+    check(12, 'track without a session is rejected', res.status === 401, `status=${res.status}`)
+  }
+
+  // 13. Valid code returns status and subject.
+  {
+    const res = await track({ code: trackable.referenceCode }, cookie)
+    const data = await res.json().catch(() => ({}))
+    check(
+      13,
+      'a valid code returns the submission status and subject',
+      res.ok && data.submission?.subject === trackSubject && !!data.submission?.status,
+      `status=${res.status} body=${JSON.stringify(data).slice(0, 120)}`
+    )
+  }
+
+  // 14. THE NARROWING — no body, name, contact, id or ref_hash may come back.
+  {
+    const res = await track({ code: trackable.referenceCode }, cookie)
+    const raw = await res.text()
+    const forbidden = ['Distinctive body text', '"body"', '"name"', '"contact"', '"id"', '"ref_hash"']
+    const leaked = forbidden.filter((f) => raw.includes(f))
+    check(
+      14,
+      'track response omits body, name, contact, id and ref_hash',
+      leaked.length === 0,
+      `leaked: ${leaked.join(', ')}`
+    )
+  }
+
+  // 15. Normalisation: lowercase and hyphen-stripped resolves the same row.
+  {
+    const messy = String(trackable.referenceCode).toLowerCase().replace('-', '')
+    const res = await track({ code: `  ${messy}  ` }, cookie)
+    const data = await res.json().catch(() => ({}))
+    check(
+      15,
+      'lowercase, hyphen-stripped, padded code resolves to the same submission',
+      res.ok && data.submission?.subject === trackSubject,
+      `sent="${messy}" status=${res.status}`
+    )
+  }
+
+  // 16. Unknown code -> 404, nothing leaked.
+  {
+    const res = await track({ code: 'SV-ZZZZZZZZ' }, cookie)
+    const data = await res.json().catch(() => ({}))
+    // Check for the absence of the `submission` KEY, not the word — the error
+    // copy legitimately reads "No submission found for that code."
+    check(
+      16,
+      'an unknown code returns 404 with no submission data',
+      res.status === 404 && !('submission' in data),
+      `status=${res.status} keys=${Object.keys(data).join(',')}`
+    )
+  }
 } finally {
   if (createdSubjects.length) {
     await client.query(

@@ -129,11 +129,30 @@ too. This is deliberate — do not "fix" it by embedding Polysans.
 **Slice 2:** closed-circuit access gate.
 **Slice 3:** anonymous complaint form.
 **Slice 4:** suggestion form with the reveal toggle.
+**Slice 5:** track by reference.
 
-`/track` is still a placeholder.
+The whole submitter journey now works end to end: enter → submit → get a code →
+check status and read replies.
 
-**Next:** track by reference → admin auth + dashboard → public suggestion board
-→ term-end purge.
+**Next:** admin auth + dashboard → public suggestion board → term-end purge.
+
+### Why `/api/track` is POST and not GET
+
+A `GET /api/track?code=SV-3KQ7WM2A` would put the reference code in the **URL**,
+and URLs land in Vercel's request logs, browser history, and any proxy between.
+We already accept that the host logs client IP against request time (see launch
+blockers above). Putting the code in the URL too would mean those logs contain
+**IP + timestamp + the key to a specific submission** — the exact
+deanonymisation path the schema exists to prevent, handed over in a query
+string.
+
+For the same reason there is no shareable track URL and no code in the path.
+
+The track response also deliberately omits the submission **body**. Anyone
+holding a code can open that page, and a code can be shoulder-surfed or left on
+a shared campus machine. The submitter already knows what they wrote; a finder
+gets a subject line rather than the whole account — which, in a small cohort, is
+the most identifying part.
 
 ### The public suggestion board is deferred, on purpose
 
